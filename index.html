@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Professional Adaptive Form (Safe Demo)</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(to right, #f0f2f5, #e6f0ff);
+  display: flex; justify-content: center; align-items: center;
+  height: 100vh; margin: 0;
+}
+form {
+  background-color: #fff; padding: 2rem; border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25); max-width: 450px; width: 100%;
+  transition: all 0.3s ease;
+}
+h1 { text-align: center; margin-bottom: 1.5rem; font-size: 1.6rem; color: #333; }
+label { display: block; margin-bottom: 0.25rem; font-weight: bold; color: #555; }
+input {
+  width: 100%; padding: 0.5rem; margin-bottom: 0.25rem; border: 1px solid #ccc;
+  border-radius: 6px; font-size: 1rem; box-sizing: border-box;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+input:focus { border-color: #007BFF; outline: none; box-shadow: 0 0 6px rgba(0,123,255,0.4); }
+.validation-error { color: red; font-size: 0.85rem; margin-bottom: 0.75rem; transition: all 0.2s ease; }
+
+.password-container { position: relative; }
+.password-container input { padding-right: 2.5rem; }
+
+.password-toggle {
+  position: absolute;
+  top: 50%; right: 0.5rem;
+  transform: translateY(-50%);
+  cursor: pointer;
+  display: none;
+  width: 24px; height: 24px;
+}
+.password-toggle svg { width: 100%; height: 100%; }
+
+.password-strength {
+  height: 6px; border-radius: 4px; margin-bottom: 0.75rem;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+button {
+  width: 100%; padding: 0.75rem; font-size: 1rem; font-weight: bold;
+  color: #fff; background-color: #007BFF; border: none; border-radius: 6px;
+  cursor: pointer; margin-top: 0.5rem; transition: background-color 0.3s ease;
+}
+button:hover { background-color: #0056b3; }
+
+.note { font-size: 0.85rem; color: #888; margin-bottom: 1rem; text-align: center; }
+
+.success-message {
+  text-align: center; color: green; font-weight: bold; margin-top: 1rem;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<form validation="auto">
+  <h1>Login / Signup Form</h1>
+
+  <label for="fullname">Full Name</label>
+  <input id="fullname" name="fullname" validation="name" placeholder="Enter your full name">
+
+  <label for="phone">Phone</label>
+  <input id="phone" name="phone" validation="phone" placeholder="e.g., +45 3977 4000">
+
+  <label for="email">Email</label>
+  <input id="email" name="email" validation="email" placeholder="you@example.com">
+
+  <label for="password">Password</label>
+  <div class="password-container">
+    <input id="password" name="password" validation="password" type="password" placeholder="Enter password">
+    <span class="password-toggle" id="toggle-password">
+      <svg viewBox="0 0 24 24">
+        <path id="eye-path" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="#aaa" stroke-width="2" fill="none"/>
+        <circle id="eye-pupil" cx="12" cy="12" r="2" fill="#aaa"/>
+      </svg>
+    </span>
+  </div>
+  <div class="password-strength" id="password-strength"></div>
+
+  <label for="confirm">Confirm Password</label>
+  <input id="confirm" name="confirm" validation="confirm" for="password" type="password" placeholder="Re-enter password">
+
+  <div class="note">* Real-time validation & password strength. No data is submitted anywhere.</div>
+
+  <button type="submit">Submit</button>
+  <div class="success-message" id="success-message">Form validated successfully!</div>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const forms = document.querySelectorAll('form[validation="auto"]');
+  const strengthMeter = document.getElementById("password-strength");
+  const successMessage = document.getElementById("success-message");
+
+  const debounce = (fn, delay=200) => {
+    let timer;
+    return (...args)=> { clearTimeout(timer); timer = setTimeout(()=>fn(...args), delay); };
+  };
+
+  const genericPhone = /^\+?[0-9\s]{6,20}$/;
+
+  forms.forEach(form => {
+
+    const validateField = (input) => {
+      const type = input.getAttribute("validation");
+      const value = input.value.trim();
+      let error = "";
+
+      if(value !== "") {
+        switch(type) {
+          case "name":
+            if(!/^[a-zA-Z\s]+$/.test(value)) error = "Name can only contain letters and spaces.";
+            break;
+          case "phone":
+            if(!genericPhone.test(value)) error = "Enter a valid phone number.";
+            break;
+          case "email":
+            if(!/^\S+@\S+\.\S+$/.test(value)) error = "Enter a valid email address.";
+            break;
+          case "password":
+            let strengthPoints = 0;
+            if(value.length >= 8) strengthPoints++;
+            if(/[A-Z]/.test(value)) strengthPoints++;
+            if(/[a-z]/.test(value)) strengthPoints++;
+            if(/[0-9]/.test(value)) strengthPoints++;
+            if(/[\W_]/.test(value)) strengthPoints++;
+            if(strengthPoints < 3) error="Password too weak.";
+            const colors = ["red","orange","yellow","green","purple"];
+            strengthMeter.style.width = (strengthPoints/5*100) + "%";
+            strengthMeter.style.backgroundColor = colors[strengthPoints-1] || "red";
+            break;
+          case "confirm":
+            const pw = form.querySelector('input[validation="password"]').value;
+            if(pw && value !== pw) error = "Passwords do not match.";
+            break;
+        }
+      } else if(type==="password") {
+        strengthMeter.style.width="0%";
+      }
+
+      let errorEl = input.nextElementSibling;
+      if(!errorEl || !errorEl.classList.contains("validation-error")){
+        errorEl = document.createElement("div");
+        errorEl.className="validation-error";
+        input.insertAdjacentElement("afterend",errorEl);
+      }
+      errorEl.textContent = error;
+      return error === "";
+    };
+
+    const debouncedValidate = debounce(validateField, 200);
+
+    // Name restrictions
+    const nameInput = form.querySelector('input[validation="name"]');
+    if(nameInput){
+      nameInput.addEventListener("keypress",(e)=>{ if(!/[a-zA-Z\s]/.test(e.key)) e.preventDefault(); });
+      nameInput.addEventListener("paste",(e)=>{ 
+        e.preventDefault(); 
+        const clean = e.clipboardData.getData('text').replace(/[^a-zA-Z\s]/g,''); 
+        nameInput.value = clean; debouncedValidate(nameInput);
+      });
+    }
+
+    // Phone restrictions
+    const phoneInput = form.querySelector('input[validation="phone"]');
+    if(phoneInput){
+      phoneInput.addEventListener("keypress",(e)=>{
+        if(!/[0-9\+]/.test(e.key) || phoneInput.value.replace(/\D/g,'').length>=15) e.preventDefault();
+      });
+      phoneInput.addEventListener("paste",(e)=>{
+        e.preventDefault();
+        const paste = e.clipboardData.getData('text').replace(/[^\d\+]/g,'').slice(0,15);
+        phoneInput.value = paste;
+        debouncedValidate(phoneInput);
+      });
+    }
+
+    // Real-time validation
+    form.querySelectorAll("[validation]").forEach(input=>{
+      input.addEventListener("input",()=>debouncedValidate(input));
+    });
+
+    // Form submit
+    form.addEventListener("submit", e=>{
+      e.preventDefault(); // Prevent actual submission
+      successMessage.style.display = "none";
+      let valid = true;
+      form.querySelectorAll("[validation]").forEach(input=>{
+        if(!validateField(input)) valid=false;
+      });
+
+      const passwordField = form.querySelector('input[validation="password"]');
+      if(!passwordField.value.trim()){
+        const errorEl = passwordField.nextElementSibling || document.createElement("div");
+        errorEl.className="validation-error";
+        errorEl.textContent="Password is required.";
+        if(!passwordField.nextElementSibling) passwordField.insertAdjacentElement("afterend",errorEl);
+        valid=false;
+      }
+
+      if(valid){
+        // Safe feedback without showing any data
+        successMessage.style.display = "block";
+      }
+    });
+
+  });
+
+  // Simple light-colored eye toggle
+  const toggle = document.getElementById("toggle-password");
+  const passwordInput = document.getElementById("password");
+  const pupil = document.getElementById("eye-pupil");
+
+  passwordInput.addEventListener("input", () => {
+    toggle.style.display = passwordInput.value.length ? "block" : "none";
+  });
+
+  toggle.addEventListener("click", () => {
+    if(passwordInput.type === "password") {
+      passwordInput.type = "text";
+      pupil.setAttribute("r","0"); // hide pupil
+    } else {
+      passwordInput.type = "password";
+      pupil.setAttribute("r","2"); // show pupil
+    }
+  });
+
+});
+</script>
+
+</body>
+</html>
